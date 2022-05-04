@@ -4,8 +4,70 @@ import {useMetadata} from './useMetadata'
 import {RestoreIcon, RemoveIcon} from '@sanity/icons'
 import {useDocumentOperation} from '@sanity/react-hooks'
 import {useRouter} from '@sanity/base/router'
+import styled, {css} from 'styled-components'
 
-import type {MetadataDocument} from './types'
+import type {MetadataDocument, RevisionInfo} from './types'
+
+const Root = styled(Box)(({theme}) => {
+  const {bleed, ghost} = theme.sanity.color.button
+
+  return css`
+    @media (hover: hover) {
+      &:not([data-disabled='true']):hover {
+      }
+    }
+  `
+})
+
+type RevisionCardProps = {
+  revision: RevisionInfo
+  doRestore: (revision: string) => void
+  clearRevision: (revision: string) => void
+}
+
+const RevisionCard = ({revision, doRestore, clearRevision}: RevisionCardProps) => {
+  console.log(revision)
+  return (
+    <Root key={revision.revision}>
+      <Stack space={2}>
+        <Flex>
+          <Box style={{flex: 1}}>
+            <Stack space={2}>
+              <Text weight="bold">{revision.name}</Text>
+              <Text>
+                By {revision.user.name}, {new Date(revision.timestamp).toLocaleDateString()}{' '}
+                {new Date(revision.timestamp).toLocaleTimeString()}
+              </Text>
+            </Stack>
+          </Box>
+          <Inline space={2}>
+            <Box>
+              <Button
+                onClick={() => clearRevision(revision.revision)}
+                tone="critical"
+                mode="bleed"
+                fontSize={[2]}
+                text="Clear"
+              />
+            </Box>
+              <Box>
+                <Button
+                  onClick={() => doRestore(revision.revision)}
+                  fontSize={[2]}
+                  icon={RestoreIcon}
+                  text="Restore"
+                  tone="primary"
+                />
+              </Box>
+          </Inline>
+        </Flex>
+        <Box paddingY={1}>
+          <Text style={{fontStyle: 'italic'}}>{revision.comment}</Text>
+        </Box>
+      </Stack>
+    </Root>
+  )
+}
 
 export const SavedRevisions = ({documentId, type, document}) => {
   const {displayed} = document
@@ -35,7 +97,7 @@ export const SavedRevisions = ({documentId, type, document}) => {
 
   const clearRevision = (revision: string) => {
     saveMetadata({
-      revisions: revisions.filter(r => r.revision !== revision)
+      revisions: revisions.filter((r) => r.revision !== revision),
     })
   }
 
@@ -44,41 +106,11 @@ export const SavedRevisions = ({documentId, type, document}) => {
       <Stack space={4}>
         {revisions.length === 0 && <Text>There are no saved versions yet</Text>}
         {revisions.map((revision) => (
-          <React.Fragment key={revision.timestamp}>
-            <Stack space={2}>
-              <Flex>
-                <Box style={{flex: 1}}>
-                  <Stack space={2}>
-                    <Text weight="bold">{revision.name}</Text>
-                    <Text>
-                      By {revision.user.name}, {new Date(revision.timestamp).toLocaleDateString()}{' '}
-                      {new Date(revision.timestamp).toLocaleTimeString()}
-                    </Text>
-                  </Stack>
-                </Box>
-                <Inline space={2}>
-                  <Box>
-                    <Button onClick={() => clearRevision(revision.revision)} tone='critical' mode="bleed" fontSize={[2]} text="Clear" />
-                  </Box>
-                  {currentRevision !== revision.revision && (
-                    <Box>
-                      <Button
-                        onClick={() => doRestore(revision.revision)}
-                        fontSize={[2]}
-                        icon={RestoreIcon}
-                        disabled={currentRevision === revision.revision}
-                        text="Restore"
-                        tone="primary"
-                      />
-                    </Box>
-                  )}
-                </Inline>
-              </Flex>
-              <Box paddingY={1}>
-                <Text style={{fontStyle: 'italic'}}>{revision.comment}</Text>
-              </Box>
-            </Stack>
-          </React.Fragment>
+          <RevisionCard
+            revision={revision}
+            clearRevision={clearRevision}
+            doRestore={doRestore}
+          />
         ))}
       </Stack>
     </Card>

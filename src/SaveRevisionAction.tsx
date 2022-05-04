@@ -20,7 +20,6 @@ const SaveDialog = ({close, documentId, revision}: DialogProps) => {
   const [name, setName] = useState<string>()
   const [comment, setComment] = useState<string>()
   const [saving, setSaving] = useState(false)
-  const input = useRef<HTMLInputElement>()
   const user = useCurrentUser()
   const [metadata, saveMetadata] = useMetadata<MetadataDocument>({
     scope,
@@ -47,12 +46,11 @@ const SaveDialog = ({close, documentId, revision}: DialogProps) => {
 
   const save = async () => {
     setSaving(true)
-    const revisionName = input.current.value
     saveMetadata({
       revisions: [
         ...(metadata.result?.revisions || []),
         {
-          name: revisionName,
+          name,
           revision,
           user: user.value,
           timestamp: Date.now(),
@@ -62,22 +60,23 @@ const SaveDialog = ({close, documentId, revision}: DialogProps) => {
     }).then(close)
   }
 
-  const invalid = input.current?.value.length && !valid
+  const invalid = name?.length && !valid
 
   return (
-    <Card padding={4}>
-      <Stack space={2}>
-        <Text style={{color: invalid ? 'red' : 'black'}} weight="bold">Unique version name</Text>
+    <Card padding={2}>
+      <Stack space={3}>
+        <Text size={1} style={{color: invalid ? 'red' : 'black'}} weight="semibold">Unique version name</Text>
         <TextInput
-          ref={input}
           onChange={(event: React.FormEvent<HTMLInputElement>) => {
             setName(event.currentTarget.value)
           }}
         />
-        <Text weight="bold">Optional comment</Text>
+        <Text size={1} weight="semibold">Optional comment</Text>
         <TextArea onChange={(event) => setComment(event.currentTarget.value)}/>
-        <Button onClick={close} text="Cancel" />
-        <Button disabled={!valid || saving} onClick={save} text="Save" tone="primary" />
+        <Stack space={1}>
+          <Button mode='bleed' onClick={close} text="Cancel" />
+          <Button disabled={!valid || saving} onClick={save} text="Save" tone="positive" />
+        </Stack>
       </Stack>
     </Card>
   )
@@ -87,12 +86,12 @@ export const SaveRevisionAction: DocumentActionComponent = (props) => {
   const {onComplete, id, draft, published} = props
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const publishAction = PublishAction(props)
-
   const document = draft || published
 
   const dialogProps: DocumentActionDialogProps = {
     type: 'modal',
     onClose: onComplete,
+    header: 'Save version',
     content: <SaveDialog documentId={id} revision={document?._rev} close={onComplete} />,
   }
 
@@ -100,8 +99,6 @@ export const SaveRevisionAction: DocumentActionComponent = (props) => {
     label: 'Save…',
     color: 'success',
     dialog: dialogOpen && dialogProps,
-    onHandle: () => {
-      setDialogOpen(true)
-    },
+    onHandle: () => setDialogOpen(true),
   }
 }
