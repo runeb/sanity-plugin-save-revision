@@ -1,10 +1,8 @@
 import React, {useMemo, useState, useRef, useEffect} from 'react'
-import {Card, Stack, Inline, Dialog, Text, TextInput, TextArea, Button} from '@sanity/ui'
+import {Card, Stack, Inline, Dialog, Text, TextInput, TextArea, Button, useToast} from '@sanity/ui'
 import {useMetadata} from './useMetadata'
-import {PublishAction} from 'part:@sanity/base/document-actions'
-import type {MetadataDocument} from './types'
-import type {SanityDocument} from '@sanity/types'
 import type {DocumentActionComponent, DocumentActionDialogProps} from '@sanity/base'
+import type {RevisionInfo} from './types'
 import {useCurrentUser} from '@sanity/base/hooks'
 
 const scope = 'save-revision'
@@ -16,48 +14,54 @@ type DialogProps = {
 }
 
 const SaveDialog = ({close, documentId, revision}: DialogProps) => {
-  const [valid, setValid] = useState(false)
   const [name, setName] = useState<string>()
   const [comment, setComment] = useState<string>()
   const [saving, setSaving] = useState(false)
   const user = useCurrentUser()
-  const [metadata, saveMetadata] = useMetadata<MetadataDocument>({
+  const [metadata, addEntry] = useMetadata<RevisionInfo>({
     scope,
     documentId,
   })
+  const toast = useToast()
 
-  useEffect(() => {
-    setValid(name && !revisionNames.includes(name))
-  }, [name])
-
-  const loading = user.isLoading || metadata.type === 'loading'
+  const loading = user.isLoading || metadata.isLoading
 
   if (loading) {
     return <Text>Loading...</Text>
   }
 
-  const error = user.error || metadata.type === 'error'
+  const error = user.error || metadata.error
 
   if (error) {
     return <Text>Error loading metadata, please try again</Text>
   }
 
-  const revisionNames = (metadata.result?.revisions || []).map((r) => r.name)
+  const revisionNames = (metadata.value?.entries || []).map((r) => r.name)
+  const valid = name && !revisionNames.includes(name)
 
   const save = async () => {
     setSaving(true)
-    saveMetadata({
-      revisions: [
-        ...(metadata.result?.revisions || []),
-        {
-          name,
-          revision,
-          user: user.value,
-          timestamp: Date.now(),
-          comment
-        },
-      ],
-    }).then(close)
+    addEntry({
+      name,
+      revision,
+      user: {id: user.value.id, name: user.value.name},
+      timestamp: Date.now(),
+      comment,
+    })
+      .then(() => {
+        toast.push({
+          status: 'success',
+          title: 'Revision saved',
+        })
+        close()
+      })
+      .catch((error) => {
+        toast.push({
+          status: 'error',
+          title: 'Could not save revision. Please try again.',
+        })
+      })
+      .finally(() => setSaving(false))
   }
 
   const invalid = name?.length && !valid
@@ -65,16 +69,20 @@ const SaveDialog = ({close, documentId, revision}: DialogProps) => {
   return (
     <Card padding={2}>
       <Stack space={3}>
-        <Text size={1} style={{color: invalid ? 'red' : 'black'}} weight="semibold">Unique version name</Text>
+        <Text size={1} style={{color: invalid ? 'red' : 'black'}} weight="semibold">
+          Unique version name
+        </Text>
         <TextInput
           onChange={(event: React.FormEvent<HTMLInputElement>) => {
             setName(event.currentTarget.value)
           }}
         />
-        <Text size={1} weight="semibold">Optional comment</Text>
-        <TextArea onChange={(event) => setComment(event.currentTarget.value)}/>
+        <Text size={1} weight="semibold">
+          Optional comment
+        </Text>
+        <TextArea onChange={(event) => setComment(event.currentTarget.value)} />
         <Stack space={1}>
-          <Button mode='bleed' onClick={close} text="Cancel" />
+          <Button mode="bleed" onClick={close} text="Cancel" />
           <Button disabled={!valid || saving} onClick={save} text="Save" tone="positive" />
         </Stack>
       </Stack>
@@ -85,7 +93,6 @@ const SaveDialog = ({close, documentId, revision}: DialogProps) => {
 export const SaveRevisionAction: DocumentActionComponent = (props) => {
   const {onComplete, id, draft, published} = props
   const [dialogOpen, setDialogOpen] = React.useState(false)
-  const publishAction = PublishAction(props)
   const document = draft || published
 
   const dialogProps: DocumentActionDialogProps = {

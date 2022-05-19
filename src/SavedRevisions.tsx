@@ -5,18 +5,11 @@ import {RestoreIcon, RemoveIcon} from '@sanity/icons'
 import {useDocumentOperation} from '@sanity/react-hooks'
 import {useRouter} from '@sanity/base/router'
 import styled, {css} from 'styled-components'
-
-import type {MetadataDocument, RevisionInfo} from './types'
+import type {RevisionInfo} from './types'
 
 const Root = styled(Box)(({theme}) => {
   const {bleed, ghost} = theme.sanity.color.button
-
-  return css`
-    @media (hover: hover) {
-      &:not([data-disabled='true']):hover {
-      }
-    }
-  `
+  return css``
 })
 
 type RevisionCardProps = {
@@ -74,7 +67,7 @@ export const SavedRevisions = ({documentId, type, document}) => {
   const currentRevision: string = displayed?._rev
   const {restore}: any = useDocumentOperation(documentId, type)
   const router = useRouter()
-  const [metadata, saveMetadata] = useMetadata<MetadataDocument>({
+  const [metadata, addEntry, removeEntry] = useMetadata<RevisionInfo>({
     scope: 'save-revision',
     documentId,
   })
@@ -85,21 +78,15 @@ export const SavedRevisions = ({documentId, type, document}) => {
     router.navigateIntent('edit', {id: documentId, type})
   }
 
-  if (metadata.type === 'loading') {
+  if (metadata.isLoading) {
     return <small>Loading...</small>
   }
 
-  if (metadata.type === 'error') {
+  if (metadata.error) {
     return <Text>Error loading metadata, please try loading this tab again.</Text>
   }
 
-  const revisions = metadata.result?.revisions || []
-
-  const clearRevision = (revision: string) => {
-    saveMetadata({
-      revisions: revisions.filter((r) => r.revision !== revision),
-    })
-  }
+  const revisions = metadata.value?.entries || []
 
   return (
     <Card padding={3}>
@@ -108,7 +95,7 @@ export const SavedRevisions = ({documentId, type, document}) => {
         {revisions.map((revision) => (
           <RevisionCard
             revision={revision}
-            clearRevision={clearRevision}
+            clearRevision={() => removeEntry(revision)}
             doRestore={doRestore}
           />
         ))}

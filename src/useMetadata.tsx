@@ -1,11 +1,11 @@
 import React, {useState, useCallback, useEffect} from 'react'
 import sanityClient from 'part:@sanity/base/client'
-import {usePromise} from './usePromise'
-import {fetchMetadataDocument, saveMetadataDocument} from './utils'
+import documentStore from 'part:@sanity/base/datastore/document'
 import {useCurrentUser} from '@sanity/base/hooks'
 import type {CurrentUser} from '@sanity/types'
 import {useLoadable} from './useLoadable'
 import type {SanityClient} from '@sanity/client'
+import {useMemo} from 'react'
 
 const client = sanityClient.withConfig({
   apiVersion: '2022-01-01',
@@ -16,19 +16,45 @@ type MetadataConfig = {
   documentId: string
 }
 
+// Only save name and id from user
+
 export function useMetadata<T>({scope, documentId}) {
   const metadataId = `metadata.${scope}.${documentId}`
 
-  const loadMetadataDocument = useCallback(
-    () => fetchMetadataDocument<T>(client, metadataId, scope),
-    [client, metadataId, scope]
+  type MetadataDocument = {
+    entries: ({_key:string} & T)[]
+  }
+
+  const loadMetadata = useLoadable<MetadataDocument>(
+    useMemo(
+      () => documentStore.listenQuery<MetadataDocument>(`* [_id == $id][0]`, {id: metadataId}),
+      [metadataId]
+    )
   )
 
-  const loadMetadata = usePromise(loadMetadataDocument)
-  const saveMetadata = useCallback(
-    (metadata: T) => saveMetadataDocument(client, metadataId, scope, metadata),
-    [client, metadataId, scope]
+  const addEntry = useCallback(
+    (entry: T) => {
+      const patch = client.patch(metadataId).setIfMissing({entries: []}).append('entries', [entry])
+
+      const tr = client
+        .transaction()
+        .createIfNotExists({_id: metadataId, _type: `metadata.${scope}`})
+        .patch(patch)
+
+      return tr.commit({autoGenerateArrayKeys: true})
+    },
+    [metadataId]
   )
 
-  return [loadMetadata, saveMetadata] as const
+  const removeEntry = useCallback(
+    (entry: {_key: string}) => {
+      client
+        .patch(metadataId)
+        .unset([`entries[_key=="${entry._key}"]`])
+        .commit()
+    },
+    [metadataId]
+  )
+
+  return [loadMetadata, addEntry, removeEntry] as const
 }
