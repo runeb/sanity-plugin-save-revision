@@ -1,7 +1,7 @@
 {
-  "name": "sanity-plugin-save-rev",
+  "name": "sanity-plugin-save-revision",
   "version": "1.0.0",
-  "description": "Save a revision with a named tag, restore later",
+  "description": "A Sanity plugin for saving named document revisions like save games and later restoring them",
   "main": "lib/index.js",
   "scripts": {
     "lint": "eslint .",
@@ -18,18 +18,24 @@
   "author": "Rune Botten <rune@sanity.io>",
   "license": "MIT",
   "dependencies": {
-    "prop-types": "^15.8.1"
+    "@sanity/icons": "^1.2.8",
+    "@sanity/ui": "^0.37.9",
+    "styled-components": "^5.3.5"
   },
   "devDependencies": {
-    "sanipack": "^2.1.0",
-    "prettier": "^2.6.2",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-config-sanity": "^6.0.0",
-    "eslint-plugin-react": "^7.29.4"
+    "eslint-plugin-react": "^7.29.4",
+    "prettier": "^2.6.2",
+    "sanipack": "^2.1.0"
   },
   "peerDependencies": {
-    "react": "^17.0.0"
+    "@sanity/base": "^2.30.0",
+    "@sanity/react-hooks": "^2.30.0",
+    "react": "^17.0.0",
+    "react-rx": "^1.0.1",
+    "rxjs": "^7.5.5"
   },
   "prettier": {
     "semi": false,
